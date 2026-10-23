@@ -68,6 +68,10 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
 .lists ul{margin:0;padding:0;list-style:none}
 .lists li{padding:3px 0;overflow-wrap:anywhere}
 .note{margin-top:12px;font-size:.85rem;color:var(--soft);line-height:1.4}
+.when{margin:20px auto 0;padding:16px 20px;max-width:340px;border-radius:24px;background:var(--card);backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(120,140,200,.18);line-height:1.5}
+.when .k{font-family:"Dancing Script","Brush Script MT",cursive;font-size:1.5rem;font-weight:700;color:var(--accent);margin:0}
+.when p{margin:2px 0 0;font-size:1.1rem;font-weight:600}
+.when .sep{height:2px;width:46px;margin:10px auto;border-radius:2px;background:linear-gradient(90deg,#8ec3f7,#f7a6c8)}
 @media (max-width:420px){main{padding-left:34px;padding-right:34px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -88,6 +92,13 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
     <button class="gift" id="gift" aria-label="Regalo sorpresa"><span class="bow">🎀</span><span class="lid"></span><span class="base"></span><span class="rib"></span><span class="q">?</span></button>
   </div>
   <p id="msg">Toca el regalo, si te atreves.</p>
+
+  <section class="when" aria-label="Fecha y lugar">
+    <p class="k">Te esperamos</p>
+    <p>Domingo 25 de octubre de 2026</p>
+    <div class="sep"></div>
+    <p>📍 Calle Inti 176</p>
+  </section>
 
   <section class="votes">
     <h2>¿Qué crees que será?</h2>
@@ -174,6 +185,7 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
     $('tally').textContent=t?('Niño: '+b+' · Niña: '+g+' ('+t+(t===1?' voto':' votos')+')'):'Todavía nadie ha votado. ¡Sé el primero!';
     li($('lb'),lb);li($('lg'),lg);
     [].forEach.call(document.querySelectorAll('.vcard'),function(v){v.classList.toggle('sel',v.dataset.v===mine)});
+    
   }
   function localVote(k){
     if(mine===k)return;
