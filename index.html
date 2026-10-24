@@ -72,6 +72,9 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
 .when .k{font-family:"Dancing Script","Brush Script MT",cursive;font-size:1.5rem;font-weight:700;color:var(--accent);margin:0}
 .when p{margin:2px 0 0;font-size:1.1rem;font-weight:600}
 .when .sep{height:2px;width:46px;margin:10px auto;border-radius:2px;background:linear-gradient(90deg,#8ec3f7,#f7a6c8)}
+.votebtn{margin:12px auto 0;display:block;font:inherit;font-weight:600;font-size:1.15rem;border:0;border-radius:999px;padding:13px 40px;color:#fff;background:linear-gradient(90deg,#7fb8f5,#f58db9);cursor:pointer;box-shadow:0 8px 20px rgba(140,160,230,.4)}
+.votebtn:active{transform:scale(.97)}.votebtn:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.vmsg{min-height:1.3em;margin:8px 0 0;font-size:.92rem;color:var(--soft)}
 @media (max-width:420px){main{padding-left:34px;padding-right:34px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -103,15 +106,17 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
 
   <section class="votes">
     <h2>¿Qué crees que será?</h2>
-    <p>Toca tu apuesta. Puedes cambiarla cuando quieras.</p>
+    <p>Elige niño o niña, escribe tu nombre y toca Votar.</p>
     <div class="row">
       <button class="vcard b" data-v="b"><span class="face"></span><b>Niño</b></button>
       <button class="vcard g" data-v="g"><span class="face"></span><b>Niña</b></button>
     </div>
-    <input class="name" id="name" maxlength="24" placeholder="Tu nombre (opcional)" autocomplete="off">
+    <input class="name" id="name" maxlength="24" placeholder="Tu nombre" autocomplete="off">
+    <button class="votebtn" id="vote" type="button">Votar</button>
+    <p class="vmsg" id="vmsg" aria-live="polite"></p>
     <div class="bar"><i class="bb" id="bb" style="width:50%"></i><i class="bg" id="bg" style="width:50%"></i></div>
     <div class="tally" id="tally"></div>
-    <div class="lists"><div><h3>💙 Niño</h3><ul id="lb"></ul></div><div><h3>💗 Niña</h3><ul id="lg"></ul></div></div>
+    <div class="lists"><div><h3 id="hb">💙 Niño</h3><ul id="lb"></ul></div><div><h3 id="hg">💗 Niña</h3><ul id="lg"></ul></div></div>
     <p class="note" id="note"></p>
   </section>
 </main>
@@ -168,61 +173,50 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
     $('msg').textContent=shh[si++%shh.length];
   };
 
-  // Apuestas: compartidas (db) cuando se puede, locales si no
-  var shared=false,uid=null,ref=null,mine=lsGet('gr_mine'),votes=[];
-  var local={b:+(lsGet('gr_b')||0),g:+(lsGet('gr_g')||0)};
+  // Apuestas guardadas en el servidor (votes.php)
+  var API='votes.php';
+  var cid=lsGet('gr_cid');
+  if(!cid){cid='c'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);lsSet('gr_cid',cid)}
+  var mine=lsGet('gr_mine'),pick=mine,votes=[],online=true;
   $('name').value=lsGet('gr_name')||'';
   function li(ul,list){ul.textContent='';list.forEach(function(n){var e=document.createElement('li');e.textContent=n;ul.appendChild(e)})}
   function render(){
     var b=0,g=0,lb=[],lg=[];
-    if(shared){
-      votes.forEach(function(x){
-        var nm=(x.name||'').trim()||'Invitado';
-        if(x.v==='b'){b++;lb.push(nm)}else if(x.v==='g'){g++;lg.push(nm)}
-      });
-    }else{b=local.b;g=local.g}
+    votes.forEach(function(x){
+      var nm=(x.name||'').trim()||'Invitado';
+      if(x.v==='b'){b++;lb.push(nm)}else if(x.v==='g'){g++;lg.push(nm)}
+    });
     var t=b+g;
     $('bb').style.width=(t?b/t*100:50)+'%';$('bg').style.width=(t?g/t*100:50)+'%';
     $('tally').textContent=t?('Niño: '+b+' · Niña: '+g+' ('+t+(t===1?' voto':' votos')+')'):'Todavía nadie ha votado. ¡Sé el primero!';
     li($('lb'),lb);li($('lg'),lg);
-    [].forEach.call(document.querySelectorAll('.vcard'),function(v){v.classList.toggle('sel',v.dataset.v===mine)});
+    $('hb').textContent='💙 Niño ('+b+')';$('hg').textContent='💗 Niña ('+g+')';
+    [].forEach.call(document.querySelectorAll('.vcard'),function(v){v.classList.toggle('sel',v.dataset.v===(pick||mine))});
   }
-  function localVote(k){
-    if(mine===k)return;
-    if(mine)local[mine]=Math.max(0,local[mine]-1);
-    local[k]++;mine=k;lsSet('gr_b',local.b);lsSet('gr_g',local.g);lsSet('gr_mine',mine);
+  function load(){
+    fetch(API+'?id='+encodeURIComponent(cid),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+      votes=d.votes||[];online=true;
+      if(d.mine){mine=d.mine;lsSet('gr_mine',mine)}
+      render();
+    }).catch(function(){online=false;render()});
   }
   [].forEach.call(document.querySelectorAll('.vcard'),function(v){
-    v.onclick=function(){
-      var k=v.dataset.v,nm=$('name').value.trim();lsSet('gr_name',nm);
-      if(shared&&ref){
-        mine=k;lsSet('gr_mine',k);render();
-        ref.set({v:k,name:nm,t:Date.now()}).catch(function(){shared=false;localVote(k);render()});
-      }else{localVote(k);render()}
-    };
+    v.onclick=function(){pick=v.dataset.v;$('vmsg').textContent='';render()};
   });
-  $('name').addEventListener('change',function(){
-    var nm=$('name').value.trim();lsSet('gr_name',nm);
-    if(shared&&ref&&mine)ref.set({v:mine,name:nm,t:Date.now()}).catch(function(){});
-  });
-  render();
-
-  if(window.claude&&claude.use){
-    Promise.all([claude.use('db'),claude.use('user')]).then(function(r){
-      var db=r[0],user=r[1];
-      if(!db||!user)return null;
-      return user.id().then(function(id){
-        if(!id)return;
-        uid=id;ref=db.doc('votes/'+uid);shared=true;
-        db.collection('votes').onSnapshot(function(snap){
-          votes=snap.docs.map(function(d){return d.data()});
-          var me=snap.docs.filter(function(d){return d.id===uid})[0];
-          if(me){mine=me.data().v;if(!$('name').value&&me.data().name)$('name').value=me.data().name}
-          shared=true;render();
-        },function(){shared=false;render()});
-      });
-    }).catch(function(){shared=false;render()});
-  }
+  $('vote').onclick=function(){
+    var nm=$('name').value.trim();
+    if(!pick){$('vmsg').textContent='Primero elige niño o niña.';return}
+    if(!nm){$('vmsg').textContent='Escribe tu nombre para que todos sepan quién votó.';return}
+    lsSet('gr_name',nm);$('vote').disabled=true;
+    fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:cid,v:pick,name:nm})})
+      .then(function(r){return r.json()}).then(function(d){
+        if(d.error)throw new Error(d.error);
+        votes=d.votes||[];online=true;mine=pick;lsSet('gr_mine',mine);
+        $('vmsg').textContent='¡Voto guardado! Gracias 💛';render();
+      }).catch(function(){$('vmsg').textContent='No se pudo guardar tu voto. Intenta otra vez.'})
+      .then(function(){$('vote').disabled=false});
+  };
+  render();load();setInterval(load,8000);
 })();
 </script>
 </body>
