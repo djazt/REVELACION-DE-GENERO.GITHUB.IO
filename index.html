@@ -192,8 +192,7 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
     li($('lb'),lb);li($('lg'),lg);
     $('hb').textContent='💙 Niño ('+b+')';$('hg').textContent='💗 Niña ('+g+')';
     [].forEach.call(document.querySelectorAll('.vcard'),function(v){v.classList.toggle('sel',v.dataset.v===(pick||mine))});
-    $('note').textContent=online?'Las apuestas se actualizan solas para todos los que abran esta invitación.':'No se pudo conectar para ver las apuestas. Intenta de nuevo en un momento.';
-  }
+     }
   function load(){
     if(DB_URL.indexOf('http')!==0){online=false;render();return}
     fetch(DB_URL+'/votes.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){
