@@ -174,7 +174,7 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
   };
 
   // Apuestas guardadas en el servidor (votes.php)
-  var API='votes.php';
+  var DB_URL='https://invitacion-bc1ac-default-rtdb.firebaseio.com'; // ejemplo: https://mi-proyecto-default-rtdb.firebaseio.com (sin / al final)
   var cid=lsGet('gr_cid');
   if(!cid){cid='c'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);lsSet('gr_cid',cid)}
   var mine=lsGet('gr_mine'),pick=mine,votes=[],online=true;
@@ -192,11 +192,15 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
     li($('lb'),lb);li($('lg'),lg);
     $('hb').textContent='💙 Niño ('+b+')';$('hg').textContent='💗 Niña ('+g+')';
     [].forEach.call(document.querySelectorAll('.vcard'),function(v){v.classList.toggle('sel',v.dataset.v===(pick||mine))});
+    $('note').textContent=online?'Las apuestas se actualizan solas para todos los que abran esta invitación.':'No se pudo conectar para ver las apuestas. Intenta de nuevo en un momento.';
   }
   function load(){
-    fetch(API+'?id='+encodeURIComponent(cid),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
-      votes=d.votes||[];online=true;
-      if(d.mine){mine=d.mine;lsSet('gr_mine',mine)}
+    if(DB_URL.indexOf('http')!==0){online=false;render();return}
+    fetch(DB_URL+'/votes.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){
+      o=o||{};
+      votes=Object.keys(o).map(function(k){return o[k]}).sort(function(a,b){return(a.t||0)-(b.t||0)});
+      online=true;
+      if(o[cid]){mine=o[cid].v;lsSet('gr_mine',mine)}
       render();
     }).catch(function(){online=false;render()});
   }
@@ -208,11 +212,12 @@ h1{font-size:clamp(2.1rem,9vw,3.2rem);line-height:1.05;margin:4px 0 8px;font-wei
     if(!pick){$('vmsg').textContent='Primero elige niño o niña.';return}
     if(!nm){$('vmsg').textContent='Escribe tu nombre para que todos sepan quién votó.';return}
     lsSet('gr_name',nm);$('vote').disabled=true;
-    fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:cid,v:pick,name:nm})})
-      .then(function(r){return r.json()}).then(function(d){
-        if(d.error)throw new Error(d.error);
-        votes=d.votes||[];online=true;mine=pick;lsSet('gr_mine',mine);
-        $('vmsg').textContent='¡Voto guardado! Gracias 💛';render();
+    if(DB_URL.indexOf('http')!==0){$('vmsg').textContent='Falta configurar la base de datos de votos.';$('vote').disabled=false;return}
+    fetch(DB_URL+'/votes/'+encodeURIComponent(cid)+'.json',{method:'PUT',body:JSON.stringify({v:pick,name:nm,t:Date.now()})})
+      .then(function(r){
+        if(!r.ok)throw 0;
+        online=true;mine=pick;lsSet('gr_mine',mine);
+        $('vmsg').textContent='¡Voto guardado! Gracias 💛';load();
       }).catch(function(){$('vmsg').textContent='No se pudo guardar tu voto. Intenta otra vez.'})
       .then(function(){$('vote').disabled=false});
   };
